@@ -1,0 +1,17 @@
+#ifndef HOST_ERRORS_H
+#define HOST_ERRORS_H
+
+#define SPERR_SUCCESS           0
+#define SPERR_COMM_ERROR       -1
+#define SPERR_HOST_DISCONNECT  -2
+#define SPERR_INVALID_HOST     -3
+#define SPERR_INVALID_PORT     -4
+#define SPERR_INVALID_RESPONSE -5
+#define SPERR_NO_CONNECTION    -6
+#define SPERR_NO_RESPONSE      -7
+#define SPERR_PROCESSING_ERROR -8
+#define SPERR_INVALID_AID      -9
+#define SPERR_BUFFER_OVERFLOW  0x80000017
+#define SPERR_HOST_INFINITE    0x7FFFFFFF
+
+#endif

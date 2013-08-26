@@ -1,0 +1,52 @@
+// This smple shows how to traverce a tlv_parser object in order to process
+// all the nodes in a tree
+
+...
+int res = traverceTheTree(tlv_data);
+...
+
+//recersively parse resp_data and print the tags and values of all elements retreived
+int traverceTheTree(tlv_parser *resp_data)
+{
+	// Prints the tag and the value of the root TLV object
+	PrintRoot(resp_data);
+	
+	tlv_parser *tlv_child;
+	tlv_child = resp_data->GetFirstChild ();
+	while (tlv_child)
+	{
+		parse_tlv_element (tlv_child);
+		resp_data->GetNext ();
+	}
+	return SUCCESS;
+}
+
+// Recursive function.
+// Implements preorder traversal of the tree
+void parse_tlv_element(tlv_parser *tlv_data)
+{
+	if (!tlv_data)
+		return;
+
+	// Prints the tag and the value of the root TLV object
+	PrintRoot(resp_data);
+	
+	// Recursively call child nodes
+	tlv_parser *tlv_child;
+	tlv_child = tlv_data->GetFirstChild ();
+	while (tlv_child)
+	{
+		parse_tlv_element (tlv_child);
+		tlv_data->GetNext ();
+	}
+}
+
+void PrintRoot (tlv_parser *tlv_root)
+{
+	// print the tag and the value of the current TLV object (function implementation
+	// is not shown in this example)
+	print(tlv_root->GetRoot()->GetTagVal(),  // Retreive Tag
+		  tlv_root->GetRoot ()->GetValue (), // Retreive value
+		  tlv_root->GetRoot ()->GetLengthVal(), // Retreive a number of bytes in the value
+		  );
+}

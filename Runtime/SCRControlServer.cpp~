@@ -1,0 +1,428 @@
+// SCRControlServer.cpp : Defines the entry point for the DLL application.
+//
+// This DLL implements a Smart Card Reader service. It uses PC/SC API to communicate
+// with a card.
+// DLL is built using three threads.
+// 1. Main thread - Dll entry function, Window Procedure
+// 2. hWndThread - a thread that creates a message window. This window is used
+//    to send / reeive message from other threads
+// 3. hEventThread - Event tracker thread. This threads waits for a ststus change 
+//    in a reader, and as soon as the status is changed, it sends a message to 
+//    the Message Window.
+// Before sending any command to the card inserted in a reader, connection
+//	  must be established between reader and the DLL (EstablishConnection).
+// To catch OnInsert and OnRemove events, a call back functions implemented
+// this events must be defined in the caller and registered with the control.
+
+
+// Functions that implements the thread that lounches a message window.
+// A message window is a hidden window that is used for receiving and processing messages
+// from the EventTracker thread
+unsigned  MsgWndThread( void* pArguments );
+
+// EventTrackerThread thread. It is used to track a status of the reader and the card.
+// Specifically it detects Insert and remove events.
+unsigned EventTrackerThread( void* pArguments );
+
+// Event Execution thread
+unsigned  EventExecThread( void* pArguments );
+
+
+// This function finds a first available reader on the system
+
+void FireEvent (int iEvent);
+static SCRControlImpl* getPointer(UINT_KEY key);
+int appendArr(byte **finalResult, DWORD *finalLen, 
+			   byte *bRecvBuffer, DWORD dwRecvLength);
+void ShutDownThreads();
+
+
+SCRControlServer ReaderFunctions;
+
+typedef struct EventExecArg
+{
+	SCRControlImpl *scr;
+	int iEventID;
+} EventExecArgument;
+
+
+
+// -------------------------------------------------------
+// Exported interface functions.
+// Each function must have the same name and the same signature 
+// as cooresponding interface function in SystemControlImpl object.
+// In addition the interface functions from EventAdder object must be 
+// provided (addOperationEvent and removeEvent)
+// -------------------------------------------------------
+// 
+//   A c c e s s   M a n a g e r  F u n c t i o n s
+//
+//---------------------------------------------------------
+extern "C" SCRCONTROLSERVER_API int open(AccessManager *am, UINT_KEY *Key)
+{	
+	*Key = 0;
+	// Create an instance of SCRControl
+	SCRControlImpl *scrControl = new SCRControlImpl(&ReaderFunctions);
+	if (!scrControl)
+		return ERR_MEMORY_ALLOC;
+	am->initControl ((amAdder*)scrControl);
+
+	// Use a pointer to srcControl as a key to the MAP
+	UINT_KEY ikey = (UINT_KEY)scrControl;
+	typedef std::pair <UINT_KEY, SCRControlImpl*> Pair;
+	
+
+	std::pair <MAP::iterator, bool> res;
+
+	res = Map.insert (Pair(ikey, scrControl));
+	if (res.second)
+	{
+		*Key = ikey;
+		return SUCCESS;
+	}
+	else
+	{
+		*Key = 0;
+		return ERR_MEMORY_ALLOC;
+	}	
+}
+
+
+extern "C" SCRCONTROLSERVER_API void SCRclose(UINT_KEY *Key)
+{
+	std::map<UINT_KEY, SCRControlImpl*>::iterator it;
+
+	it = Map.find(*Key);
+	if (it != Map.end ())
+	{
+		delete it->second;	
+		Map.erase(it);
+	}
+	*Key = 0;
+}
+
+
+// -----------------------------------------------------------------
+//
+//    E v e n t   A d d e r   F u n c t i o n s
+//
+// -----------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------
+//
+//    I n t e r f a c e   F u n c t i o n s
+//
+// ----------------------------------------------------------------------
+extern "C" SCRCONTROLSERVER_API int RegisterEvent(UINT_KEY Key, int iEvent, 
+												  CallBackFunc pEventFunc)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return ERR_INVALID_SERVICE_HANDLE;
+	return scrControl->RegisterEvent (iEvent, pEventFunc);
+}
+
+extern "C" SCRCONTROLSERVER_API void UnRegisterEvent(UINT_KEY Key, int iEvent)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return;
+	scrControl->UnRegisterEvent (iEvent);
+}
+
+extern "C" SCRCONTROLSERVER_API int EstablishConnection(UINT_KEY Key)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return ERR_INVALID_SERVICE_HANDLE;
+	return scrControl->EstablishConnection ();
+}
+
+extern "C" SCRCONTROLSERVER_API void DestroyConnection(UINT_KEY Key)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return;
+	scrControl->DestroyConnection ();
+}
+
+extern "C" SCRCONTROLSERVER_API bool IsInitialized(UINT_KEY Key)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return false;
+	return scrControl->IsInitialized ();
+}
+
+
+extern "C" SCRCONTROLSERVER_API void EndTransaction(UINT_KEY Key,
+													long &TransactionToken)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return;
+	scrControl->EndTransaction (TransactionToken);
+}
+
+extern "C" SCRCONTROLSERVER_API bool IsTransactionAlive(UINT_KEY Key,
+													long TransactionToken)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return false;
+	return scrControl->IsTransactionAlive (TransactionToken);
+}
+
+extern "C" SCRCONTROLSERVER_API int SendCommand (UINT_KEY Key, const byte *capdu, 
+												 unsigned int capdu_len,
+												 long TransactionToken)
+{
+	SCRControlImpl *scrControl = getPointer(Key);
+	if (!scrControl)
+		return ERR_INVALID_SERVICE_HANDLE;
+	return scrControl->SendCommand (capdu, capdu_len, TransactionToken);
+}
+
+
+
+
+
+
+
+
+
+
+// ------------------------------------------------------------------
+//
+//     T h r e a d   F u n c t i o n s
+//
+//-------------------------------------------------------------------
+/*
+	ONLY DISPATCHES MESSAGES RIGHT AND LEFT
+		NOT NECESSARY UNDER UNIX
+unsigned MsgWndThread( void* pArguments )
+{
+	HINSTANCE hModule = hInstance;
+
+	// Register windows class
+	if (!InitApplication(hModule))
+	{
+		// Failed to register a windows class
+        //_endthreadex(SCR_FAILED_WIN_CLASS_REG);
+		return SCR_FAILED_WIN_CLASS_REG;
+	}
+	
+	// SUCCEEDED in registering a window class
+	
+	//Create a message window
+	if (!(hMsgWnd = CreateMsgWindowInstance(hModule)))
+	{
+		// Failed to create a window
+        //_endthreadex(SCR_FAILED_WIN_CREATE);
+		return SCR_FAILED_WIN_CREATE;
+	}
+	// SUCCEEDED in creating a window
+	SetEvent(WindExist); // Notify that window is created
+
+	// Message Loop
+	BOOL bRet;
+	MSG msg;
+	// Start the message loop. 
+    while( (bRet = GetMessage( &msg, NULL, 0, 0 )) != 0)
+    { 
+        if (bRet == -1)
+        {
+            // handle the error and possibly exit
+			break;
+        }
+        else
+        {
+            TranslateMessage(&msg); 
+            DispatchMessage(&msg); 
+        }
+    } 
+	//cout << "Window message loop is broken" << endl;
+	//_endthreadex(SUCCESS);
+	return SUCCESS;
+}
+*/
+
+unsigned  EventTrackerThread( void* pArguments )
+{
+	//HWND hwnd = (HWND)pArguments;
+	LONG            lReturn;
+	
+	// Establish the context.
+	lReturn = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
+									NULL,
+									NULL,
+									&hContext);
+	if ( SCARD_S_SUCCESS != lReturn )
+	{	
+		//_endthreadex(SCR_FAILED_TO_ESTABLISH_CONTEXT);
+		return SCR_FAILED_TO_ESTABLISH_CONTEXT;
+	}
+	
+	// Find the reader name
+	if ((lReturn = getReaderName (hContext, &ReaderName)) != SUCCESS)
+	{
+		SCardReleaseContext(hContext);
+		hContext = (long)NULL;
+		//_endthreadex(lReturn);
+		return lReturn;
+	}
+
+	// Wait for the card to be inserted
+	SCARD_READERSTATE rdState;
+	rdState.szReader = ReaderName;
+	rdState.dwCurrentState = SCARD_STATE_UNAWARE;
+	rdState.pvUserData = NULL;
+
+	while (!CancelEventTrack)
+	{
+		if ((lReturn = SCardGetStatusChange(
+					hContext,
+					INFINITE,  // Timeout
+					&rdState,
+					1  // Number of elememnts in rdState
+					)) == SCARD_S_SUCCESS )
+		{
+			rdState.dwCurrentState = rdState.dwEventState;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	if (hContext)
+	{
+		SCardReleaseContext(hContext);
+		hContext = (long)NULL;
+	}
+	
+	if (ReaderName)
+		delete [] ReaderName;
+
+	bCardInserted = false;
+	//_endthreadex(SUCCESS);
+	return SUCCESS;
+}
+
+
+
+// ---------------------------------------------------------
+//
+//   W i n d o w   P r o c e d u r e
+//
+// ---------------------------------------------------------
+/*
+	NOT NECESSARY UNDER UNIX
+LRESULT CALLBACK WndProc(
+    HWND hwnd,        // handle to window
+    UINT uMsg,        // message identifier
+    WPARAM wParam,    // first message parameter
+    LPARAM lParam)    // second message parameter
+{ 
+ 
+    switch (uMsg) 
+    { 
+        case WM_CREATE:
+			// Initialize the window. 
+            return 0;
+		case WM_CLOSE:
+			//cout << "(WM_CLOSE) Windows is about to be destroyed" << endl;
+			DestroyWindow(hwnd);
+			break;
+		case UM_READER_STATE_CHANGE:
+			if ((wParam & SCARD_STATE_PRESENT) && !bCardInserted )
+			{
+				bCardInserted = true;
+				FireEvent (ONINSERT);
+			}
+			else if ((wParam & SCARD_STATE_EMPTY) && bCardInserted)
+			{
+				bCardInserted = false;
+				SCRControlServer::EndTransaction((long&)hCardHandle);
+				FireEvent (ONREMOVE);
+			}
+			break;
+        case WM_DESTROY: 
+            // Post the WM_QUIT message to 
+			// quit the application terminate. 
+			//cout << "(WM_DESTROY) Exiting the application" << endl;
+			if (hContext)
+			{
+				// Send a signal to terminate the event thread
+				//cout << "Canceling Card Context from WinProc" << endl;
+				//long rs = SCardCancel(hContext);
+				//cout << "After, result = " << rs << endl;
+			}
+			ResetEvent(WindExist); // Notify that the window is closed
+			hMsgWnd = NULL;
+			bCardInserted = false;
+			PostQuitMessage(0); 
+			return 0; 
+        // 
+        // Process other messages. 
+        // 
+        default: 
+            return DefWindowProc(hwnd, uMsg, wParam, lParam); 
+    } 
+    return 0; 
+} 
+*/
+
+
+// ---------------------------------------------------------
+//
+//    U t i l i t y    F u n c t i o n s
+//
+//----------------------------------------------------------
+
+/*
+void FireEvent (int iEvent)
+{
+	std::map<UINT_KEY, SCRControlImpl*>::iterator it;
+	for (it = Map.begin ();it != Map.end(); it++)
+	{
+		if (it->second->IsEventRegistered(iEvent))
+		{
+			unsigned int threadID;
+			EventExecArgument *arg = new (EventExecArgument);
+			if (arg)
+			{
+				arg->scr = it->second;
+				arg->iEventID  = iEvent;
+				HANDLE hThread = (HANDLE)_beginthreadex (NULL, 0, &EventExecThread, 
+					(void*)arg, 0, &threadID);
+				Sleep(100); // Give a chance to thread to start-up
+				if (hThread)
+					CloseHandle(hThread);
+				else
+					delete arg;
+			}
+		}
+	}
+}
+*/
+
+/*
+unsigned __stdcall EventExecThread( void* pArguments )
+{
+	EventExecArgument *arg = (EventExecArgument*)pArguments;
+	if (arg)
+	{
+		SCRControlImpl *src = arg->scr;
+		int iEvent = arg->iEventID;
+		delete arg;
+		if (src)
+		{
+			src->FireEvent (iEvent);
+		}
+	}
+	return SUCCESS;
+}
+*/
+

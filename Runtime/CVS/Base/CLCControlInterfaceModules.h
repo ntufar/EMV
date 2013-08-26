@@ -1,0 +1,6 @@
+#ifndef CLCCONTROLINTERFACEMODULES_H
+#define CLCCONTROLINTERFACEMODULES_H
+
+#define MOD_CLCControlInterface 0x01
+
+#endif

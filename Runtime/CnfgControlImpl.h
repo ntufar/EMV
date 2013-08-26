@@ -1,0 +1,139 @@
+// CnfgControl Service
+// CnfgControl Interface Implementation -- Server Side.
+// This implementation uses Windows registry to store data.
+
+#ifndef CNFGCONTROLIMPL_H
+#define CNFGCONTROLIMPL_H
+
+#include "CnfgOperationEventImpl.h"
+#include "EventAdder.h"
+#include "amAdder.h"
+#include <wintypes.h>
+#include <stdio.h>
+#include "OperationEvent.h"
+#include "ServiceControl.h"
+#include "amAdder.h"
+#include "EventAdder.h"
+#include "patch.h"
+
+//--------------
+
+#define ROOT HKEY_LOCAL_MACHINE
+#define ROOT_KEY "Software\\SCS\\SmartPOS"
+#define TEREMINAL_KEY ROOT_KEY "\\TerminalInfo"
+#define APPLICATIONS_KEY ROOT_KEY "\\POSApplications"
+
+#define APPLICATIONINFO "ApplicationInfo"
+#define CLCMODULE "CLCModule"
+#define RUNTIME "Runtime"
+#define TRANSACTIONINFO TEREMINAL_KEY"\\TransactionTypes"
+
+#define SLASH "\\"
+
+// This class derives from the CnfgControl_Server interface of CnfgContol.lib
+// library, and must provide implementation for all interface functions. 
+// This is an implementation of the interface defined in CnfgContol.lib.
+class CnfgControlImpl :
+	public EventAdder,
+	public OperationEvent,
+	public amAdder,
+	public ServiceControl
+{
+public:
+
+	CnfgControlImpl();
+	virtual ~CnfgControlImpl(void);
+
+// Interface Functions
+//--------------------------------------------------------------------
+	//virtual int initialize(const char *pAppName);
+
+	virtual int getValue(const int iCategory, const char* Value_Name,
+		const char* subKey = NULL);
+	virtual int getValueString(const int iCategory, const char* Value_Name,
+		const char* subKey = NULL);
+
+			
+	virtual int setValueLong(const int iCategory, const char* Value_Name, 
+		const long longValue, bool create, const char* subKey = NULL);
+	virtual int setValueString(const int iCategory, const char* Value_Name, 
+		const char* stringValue, bool create, const char* subKey = NULL);
+	virtual int setValueByteString(const int iCategory, const char* Value_Name, 
+		const byte* binaryValue, const int size, bool create, 
+		const char* subKey = NULL);
+
+	virtual int deleteValue(const int iCategory, const char* Value_Name,
+		const char* subKey = NULL);
+
+	virtual int createValue(const int iCategory, const char* Value_Name, 
+		const int type, const char* subKey = NULL);
+
+	virtual int enumKeys(const int iCategory, const char* Key_Name,
+		const char* subKey = NULL);
+	virtual int enumValues(const int iCategory, const char* Value_Name,
+		const char* subKey = NULL);
+
+	virtual int setTransactionType (const char *TransType);
+//-----------------------------------------------------------------------
+
+private:
+	char* buildKey(int iCategory, const char *subKey);
+	char * buildString(const char* String1, 
+					   const char* String2=NULL, 
+					   const char* String3=NULL,
+					   const char* String4=NULL,
+					   const char* String5=NULL);
+
+	int getValueFromRegistry (const char *pKey, 
+							  const char *Value_Name, 
+                              LPBYTE *lpData, 
+                              DWORD *dwType, 
+                              DWORD *dwSize,
+							  CnfgOperationEventImpl *pEvent);
+	int getValueFromRegistryStr (const char *pKey, 
+							  const char *Value_Name, 
+                              LPBYTE *lpData, 
+                              DWORD *dwType, 
+                              DWORD *dwSize,
+							  CnfgOperationEventImpl *pEvent);
+	
+	int setValueToRegistry (const char *pKey, 
+							const char *Value_Name, 
+							const LPBYTE lpData, 
+							DWORD dwType, 
+							DWORD dwSize,
+							CnfgOperationEventImpl *pEvent,
+							bool create);
+
+	int packOperationEvent (const LPBYTE lpData, 
+							DWORD dwSize, 
+							DWORD dwType, 
+							CnfgOperationEventImpl *pEvent);
+	long checkInitialization ();
+	int setLongToByteArray (long lValue,
+		     				LPBYTE *lpData, 
+                            DWORD *dwSize, 
+                            DWORD *dwType);
+	bool ValueExists(HKEY hKey, const char *Value_Name, DWORD dwType);
+	int setStringToByteArray (const char* stringValue,
+		     				   LPBYTE *lpData, 
+                               DWORD *dwSize, 
+                               DWORD *dwType);
+	int setBinaryStrToByteArray (const byte *binaryValue,
+								 int size,
+		     					 LPBYTE *lpData, 
+								 DWORD *dwSize, 
+                                 DWORD *dwType);
+	int deleteRegValue(const char *pKey, 
+					   const char *Value_Name,
+					   CnfgOperationEventImpl *pEvent);
+	int enumRegKeys(const char *pKey,  
+			        const char *Key_Name, 
+		            CnfgOperationEventImpl *pEvent);
+
+private:
+	char TransactionType[3];
+
+};
+
+#endif

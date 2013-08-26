@@ -1,0 +1,123 @@
+// AccessManager class.
+// This class must be used to open any service derived from the ServiceControl
+// class. 
+// Before it can be used, AccessManager must be initialized to aid of POS
+// Application that is going to use it. If used from the main program of 
+// a terminal, it should be initialized to the "01" aid.
+// When openning a service, the AccessManager finds and loads the  
+// the service appropriate to the currently running Application.
+
+#ifndef ACCESSMANAGER_H
+#define ACCESSMANAGER_H
+
+#include "ServiceControl.h"
+#include "amAdder.h"
+#include "POSInterface.h"
+#include "CnfgControlImpl.h"
+#include "../Utility/common_functions.h"
+#include "globals.h"
+#include <string>
+#include <wintypes.h>
+#define AID_MAX_LEN 16
+
+// AccessManager specific errors
+#define ERR_AM_REG_OPEN_KEY             0xE0000001
+#define ERR_AM_REG_QUERY_VALUE          0xE0000002
+#define AM_SERVICE_BUSY                 0xE0000003
+#define ERR_AM_REG_READ_UNEXPECTED_TYPE 0xE0000005
+#define ERR_NO_APPLICATIONS             0xE0000006
+#define AM_APPLICATION_NOT_FOUND        0xE0000007
+#define ERR_AM_PATH_NOT_FOUND           0xE0000008
+#define ERR_AM_ACCESS_VIOLATION         0xE0000009
+
+
+
+typedef struct ApplicationInfo
+{
+	byte AID[AID_MAX_LEN];
+	int aid_len;
+	char ApplName[30];
+	int majorVersion;
+	int minorVersion;
+	int releaseVersion;
+} APPLICATION_INFO;
+
+class AccessManager
+{
+public:
+	// Constructors
+	AccessManager(const byte* aid, int aid_len); // Initializes object to Application Name
+
+	// Destructor
+	~AccessManager(void);
+
+	
+	// Finds and loads the service
+	int open(ServiceControl* serviceControl);
+	int open(CnfgControlImpl* serviceControl);
+	int open(POSInterface* posControl);
+	int open(POSInterface* posControl,const byte *AID, int aid_len);
+	//closes the service
+	int close(CnfgControlImpl& serviceControl);
+	int close(ServiceControl& serviceControl);
+	
+	//Initializes ServiceControl to point to the appropriate version of the Access Manager 
+	void initControl (amAdder *am);
+	void initPOS (const byte *aid,
+		          const int aid_len, 
+			      amAdder *am);
+	// Returns an Application Name of the Application on which this instance of the AccessManager is initialized.
+	const char *getApplicationName();
+	bool getAID(byte AID[], int *aid_len);
+private:
+
+	// Keeps info about the application 
+	APPLICATION_INFO ApplInfo;
+
+	
+	bool CompareAID (byte aid_term[], int term_len, 
+				     const byte *aid_card, int card_len);
+
+private:
+	char* setPath (const char *serviceName, int InterfaceType);
+	int setServicePath (const char* applRoot, 
+								   const byte *aid, int aid_len);
+	void resetServicePath();
+	int Init(const byte *aid, int aid_len);
+	int FindAppl (const char *asci_aid, int asci_len,
+				  const byte *hex_aid, int hex_len,
+				  APPLICATION_INFO *ApplInfo);
+	bool getValueFromRegistry (HKEY hKey,
+							   const char *subKey,
+		  					   const char *Value_Name, 
+							   LPBYTE lpData, 
+							   DWORD *dwType, 
+							   DWORD *dwSize);
+	bool getValueFromRegistryWithAlloc (HKEY hKey,
+										 const char *subKey,
+										 const char *Value_Name, 
+										 LPBYTE *lpData, 
+										 DWORD *dwType, 
+										 DWORD *dwSize);
+	bool FindKey(HKEY hKey, const char *aid, 
+		         char term_aid[], int *aid_len);
+	bool CompareAID (const byte *aid_term, int term_len, 
+							    const byte *aid_card, int card_len);
+	void createStr(char *str, 
+			   const char *str1, 
+			   const char *str2, 
+			   const char *str3);
+	HKEY OpenSubKey (HKEY hKey, const char *subKey);
+
+private:
+	// Members
+	char *applPath;
+	char *clcPath;
+	char *runtimePath;
+
+public:
+	char Application_Root[AID_MAX_LEN*2 + 1];
+
+};
+
+#endif

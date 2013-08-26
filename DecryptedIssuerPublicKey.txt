@@ -1,0 +1,14 @@
+6a 02 54 13 33 ff 12 06 01 04
+01 01 01 70 01 99 90 32 95 da
+9d fa 7c b8 4e 66 4e 65 00 e4
+8a 5a 1d 2e dd 3f 46 0b e4 ad
+52 06 64 35 a6 44 c5 a8 03 ae
+5b 82 9c 31 b2 1e 81 88 98 69
+bf 98 d7 3d 9a 12 6f 22 2a c7
+62 29 88 08 ea 0a fb 94 b3 3d
+8f e2 6a f3 63 fa ea cc 3b 15
+57 cf 31 f7 cc c9 96 e4 30 ea
+74 f6 93 69 93 c3 7f 80 5b 89
+bb fc 76 ea fe c1 bb 6d 7a 35
+c5 4b 97 09 bc 9f da bc
+

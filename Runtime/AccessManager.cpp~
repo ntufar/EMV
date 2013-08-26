@@ -1,0 +1,635 @@
+#include "AccessManager.h"
+
+//#define ROOT HKEY_LOCAL_MACHINE
+#define APPLICATIONS_ROOT "Software\\SCS\\SmartPOS\\POSApplications"
+
+AccessManager::AccessManager(const byte *AID, int aid_len)
+{
+	ApplInfo.aid_len = 0;
+	ApplInfo.ApplName[0] = '\0';
+	ApplInfo.majorVersion = 0;
+	ApplInfo.minorVersion = 0;
+	ApplInfo.releaseVersion = 0;
+	applPath = 0;
+	clcPath = 0;
+	runtimePath = 0;
+	Init (AID, aid_len);
+}
+
+AccessManager::~AccessManager(void)
+{
+	resetServicePath();
+}
+
+// Finds and loads POS application service
+int AccessManager::open(CnfgControlImpl* posControl)
+{
+	return SUCCESS;
+}
+
+// Finds and loads POS application service
+int AccessManager::open(POSInterface* posControl)
+{
+
+//	if (posControl->getInterfaceType () != INTERFACE_TYPE_POS)
+//		return ERR_AM_ACCESS_VIOLATION;
+
+	AccessManager *pAM = new AccessManager (posControl->aid, posControl->aid_len);
+	if (!pAM)
+		return ERR_MEMORY_ALLOC;
+	
+	int res;
+	res = pAM->open((ServiceControl*)posControl);
+	delete pAM;
+	return res;
+}
+
+// Finds and loads POS application service
+int AccessManager::open(POSInterface* posControl, const byte *AID, int aid_len)
+{
+
+//	if (posControl->getInterfaceType () != INTERFACE_TYPE_POS)
+//		return ERR_AM_ACCESS_VIOLATION;
+
+	AccessManager *pAM = new AccessManager (AID, aid_len);
+	if (!pAM)
+		return ERR_MEMORY_ALLOC;
+	
+	int res;
+	res = pAM->open((ServiceControl*)posControl);
+	delete pAM;
+	return res;
+}
+
+
+
+// Finds and loads the service
+int AccessManager::open(ServiceControl* serviceControl)
+{
+	if (serviceControl->opened ())
+		return AM_SERVICE_BUSY; 
+
+	long res; // keeps a status code returned by function calls
+
+	// Set the path to the location where the path to DLL is stored
+	//char *servPath = setPath (serviceControl->getServiceName(), 
+	//						  serviceControl->getInterfaceType());
+	
+	//if (!servPath)
+		//return ERR_AM_PATH_NOT_FOUND;
+
+
+	HKEY hKey;
+	DWORD dwType; 
+	DWORD dwSize;
+	LPBYTE lpData;
+
+	// Open the root registry key. In our case it is HKEY_LOCAL_MACHINE
+/*
+	res = RegOpenKeyEx(
+		HKEY_LOCAL_MACHINE,    // handle to open key
+		servPath,     // subkey name
+        0,            // reserved
+        KEY_READ,     // security access mask
+        &hKey          // handle to open key
+		);
+	if (res != ERROR_SUCCESS)
+	{
+		if (serviceControl->getInterfaceType() != INTERFACE_TYPE_POS)
+			delete [] servPath;
+		return ERR_AM_REG_OPEN_KEY;
+	}
+
+	dwSize = 0; // forse to allocate memory for a buffer
+	// Get a path to a DLL from the rgistry
+	if (!getValueFromRegistryWithAlloc (hKey, NULL, "", &lpData, &dwType, &dwSize))
+	{
+		if (serviceControl->getInterfaceType() != INTERFACE_TYPE_POS)
+			delete [] servPath;
+		RegCloseKey(hKey);
+		return ERR_AM_REG_OPEN_KEY;
+	}
+
+	res = serviceControl->setPath ((char*)lpData);
+	// Release memory
+	delete []lpData;
+	if (serviceControl->getInterfaceType() != INTERFACE_TYPE_POS)
+			delete [] servPath;
+	RegCloseKey(hKey);
+
+	if (res != SUCCESS)
+	{
+		return res;
+	}
+*/
+	return serviceControl->open (this);
+}
+
+char* AccessManager::setPath (const char *serviceName, int InterfaceType)
+{
+	char *path;
+	char *InprocServer = "InprocServer";
+	char *pp;
+
+	switch (InterfaceType)
+	{
+	case INTERFACE_TYPE_POS:
+		return applPath;
+		break;
+	case INTERFACE_TYPE_CLC:
+		pp = clcPath;
+		break;
+	case INTERFACE_TYPE_DEVICE:
+	case INTERFACE_TYPE_OS_SERVICE:
+		pp = runtimePath;
+		break;
+	default:
+		return 0;
+	}
+	if (!pp)
+		return 0;
+
+	size_t size = strlen (pp) + strlen (serviceName) + 
+		strlen(InprocServer) + 3;
+	path = new char [(int)size];
+	if (!path)
+		return 0;
+	createStr (path, pp, serviceName, InprocServer);
+	return path;
+}
+
+void AccessManager::createStr(char *str, 
+			   const char *str1, 
+			   const char *str2, 
+			   const char *str3)
+{
+	if (str1)
+	{
+		strcpy(str, str1);
+		if (str2)
+		{
+			strcat (str, "\\");
+			strcat (str, str2);
+			if (str3)
+			{
+				strcat (str, "\\");
+				strcat(str, str3);
+			}
+		}
+	}
+}
+
+
+int AccessManager::setServicePath (const char* applRoot, 
+								   const byte *aid, int aid_len)
+{
+	resetServicePath();
+	int path_sz;
+	char *aid_name = HexByte2AsciiStr(aid, aid_len);
+	if (!aid_name)
+		return ERR_MEMORY_ALLOC;
+	
+	char *InprocServer = "InprocServer";
+	char *CLCModule = "CLCModule";
+	char *Runtime = "Runtime";
+	int name_len = (int)strlen(aid_name);
+
+	// INTERFACE_TYPE_POS:
+	path_sz = (int)strlen (applRoot) + name_len + (int)strlen(InprocServer) + 3;
+	applPath = new char [path_sz];
+	if (!applPath)
+	{
+		delete [] aid_name;
+		return ERR_MEMORY_ALLOC;
+	}
+	createStr (applPath, applRoot, aid_name, InprocServer);
+
+	// INTERFACE_TYPE_CLC:
+	path_sz = (int)strlen (applRoot) + name_len + (int)strlen(CLCModule) + 3;
+	clcPath = new char [path_sz];
+	if (!clcPath)
+	{
+		resetServicePath();
+		delete [] aid_name;
+		return ERR_MEMORY_ALLOC;
+	}
+	createStr (clcPath, applRoot, aid_name, CLCModule);
+	
+	// INTERFACE_TYPE_DEVICE:
+	// INTERFACE_TYPE_OS_SERVICE:
+	path_sz = (int)strlen (applRoot) + name_len + (int)strlen(Runtime) + 3;
+	runtimePath = new char [path_sz];
+	if (!runtimePath)
+	{
+		resetServicePath();
+		delete [] aid_name;
+		return ERR_MEMORY_ALLOC;
+	}
+	createStr (runtimePath, applRoot, aid_name, Runtime);
+	delete [] aid_name;
+	return SUCCESS;
+}
+
+void AccessManager::resetServicePath()
+{
+	if (runtimePath)
+	{
+		delete [] runtimePath;
+		runtimePath = 0;
+	}
+	if (clcPath)
+	{
+		delete [] clcPath;
+		clcPath = 0;
+	}
+	if (applPath)
+	{
+		delete [] applPath;
+		applPath = 0;
+	}
+}
+
+int AccessManager::close(CnfgControlImpl& serviceControl)
+{
+	return SUCCESS;
+}
+int AccessManager::close(ServiceControl& serviceControl)
+{
+	serviceControl.close();
+	return SUCCESS;
+}
+
+int AccessManager::Init(const byte *aid, int aid_len)
+{
+	char *aid_ascii = HexByte2AsciiStr(aid, aid_len);
+	if (!aid_ascii)
+		return ERR_BAD_ARGUMENT;
+
+	int res = FindAppl (aid_ascii, (int)strlen(aid_ascii), aid, aid_len, &ApplInfo);
+	delete [] aid_ascii;
+	if (res != SUCCESS)
+		return res;
+
+	return setServicePath (APPLICATIONS_ROOT, ApplInfo.AID, ApplInfo.aid_len); 		
+}
+
+int AccessManager::FindAppl (const char *asci_aid, int asci_len,
+							 const byte *hex_aid, int hex_len,
+							 APPLICATION_INFO *ApplInfo)
+{
+	HKEY hKey;
+	DWORD dwType; 
+	DWORD dwSize;
+
+	// Open the root registry key. In our case it is HKEY_LOCAL_MACHINE
+	//hKey = OpenSubKey (HKEY_LOCAL_MACHINE, APPLICATIONS_ROOT);
+	if (!hKey)
+	{
+		return ERR_AM_REG_OPEN_KEY;
+	}
+	
+	strcpy(ApplInfo->ApplName , "Nicolai'ın aplikasyonu");
+	memcpy (ApplInfo->AID, hex_aid, hex_len);
+	memcpy (GLOBAL_AID, hex_aid, hex_len);
+	ApplInfo->aid_len = hex_len;
+	ApplInfo->majorVersion = 0;
+	ApplInfo->minorVersion = 0;
+	ApplInfo->releaseVersion = 0;
+
+/*
+	// Find and open a key for this application
+	int term_aid_len = AID_MAX_LEN * 2;
+	char term_aid [AID_MAX_LEN * 2];
+	if (!FindKey (hKey, asci_aid, term_aid, &term_aid_len))
+	{
+		//RegCloseKey(hKey);
+		return AM_APPLICATION_NOT_FOUND;
+	}
+	
+	// Open a subkey
+	HKEY hSubKey = OpenSubKey (hKey, term_aid);
+	if (!hSubKey)
+	{
+		//RegCloseKey(hKey);
+		return ERR_AM_REG_OPEN_KEY;
+	}
+	
+	// Initialize application root
+	strcpy (Application_Root, term_aid);
+
+	// Fill ApplInfo structure
+	BYTE lpData [80];
+    dwSize = 80;
+	// Get Application Name
+*/
+/*
+	if (!getValueFromRegistry (hSubKey, NULL, "ApplicationName", lpData, &dwType, &dwSize)
+		|| dwType != REG_SZ)
+		ApplInfo->ApplName[0] = '\0';
+	else
+	{
+		strncpy(ApplInfo->ApplName, (char*)lpData, 29);
+		ApplInfo->ApplName[29] = '\0';
+	}
+*/
+
+	dwSize = 80;
+	// Get AID
+/*
+	if (!getValueFromRegistry (hSubKey, "ApplicationInfo\\9F06", "Data", lpData, 
+		&dwType, &dwSize) || dwType != REG_BINARY)
+	{
+		RegCloseKey(hKey);
+		RegCloseKey(hSubKey);
+		return AM_APPLICATION_NOT_FOUND;
+	}
+	else
+	{
+		if (!CompareAID(lpData, dwSize, hex_aid, hex_len))
+		{
+			RegCloseKey(hKey);
+			RegCloseKey(hSubKey);
+			return AM_APPLICATION_NOT_FOUND;
+		}
+		else
+		{
+			memcpy (ApplInfo->AID, lpData, dwSize);
+			ApplInfo->aid_len = dwSize;
+		}
+	}
+	
+	// Get Version numbers
+	DWORD ver;
+	dwSize = sizeof(DWORD);
+	if (getValueFromRegistry (hSubKey, NULL, "MajorVersion", (LPBYTE)&ver, &dwType, &dwSize) &&
+		dwType == REG_DWORD)
+		ApplInfo->majorVersion = (int)ver;
+	else
+		ApplInfo->majorVersion = 0;
+		
+	dwSize = sizeof(DWORD);
+	if (getValueFromRegistry (hSubKey, NULL, "MinorVersion", (LPBYTE)&ver, &dwType, &dwSize) &&
+		dwType == REG_DWORD)
+		ApplInfo->minorVersion = (int)ver;
+	else
+		ApplInfo->minorVersion = 0;
+	
+	dwSize = sizeof(DWORD);
+	if (getValueFromRegistry (hSubKey, NULL, "ReleaseVersion", (LPBYTE)&ver, &dwType, &dwSize) &&
+		dwType == REG_DWORD)
+		ApplInfo->releaseVersion = (int)ver;
+	else
+		ApplInfo->releaseVersion = 0;
+	
+	RegCloseKey(hKey);
+	RegCloseKey(hSubKey);
+*/
+	return SUCCESS;
+}
+
+HKEY AccessManager::OpenSubKey (HKEY hKey, const char *subKey)
+{
+/*
+	long res;
+	HKEY hSubKey;
+	res = RegOpenKeyEx(
+		hKey,         // handle to open key
+		subKey,       // subkey name
+        0,            // reserved
+        KEY_READ,     // security access mask
+        &hSubKey         // handle to open key
+		);
+	if (res != ERROR_SUCCESS)
+		return 0;
+	else
+		return hSubKey;
+*/
+	return 666;
+}
+
+bool AccessManager::getValueFromRegistryWithAlloc (HKEY hKey,
+									     const char *subKey,
+										 const char *Value_Name, 
+										 LPBYTE *lpData, 
+										 DWORD *dwType, 
+										 DWORD *dwSize)
+{
+	long res;
+	
+	HKEY hSubKey;
+	if (subKey)
+	{
+		hSubKey = OpenSubKey(hKey, subKey);
+		if (!hSubKey)
+			return false;
+	}
+	else
+		hSubKey = hKey;
+
+	//Check the size of the buffer and allocate the space for it
+	*lpData = NULL;
+	// Get the size of the buffer required to put the value read from the registry
+/*
+	res = RegQueryValueEx(
+		hSubKey,           // handle to key
+		Value_Name,    // value name
+		0,             // reserved
+		dwType,        // type buffer
+		*lpData,        // data buffer
+		dwSize        // size of data buffer
+	);
+
+	// Check if the size is OK
+	if (res != ERROR_SUCCESS)
+	{
+		if (subKey)
+			RegCloseKey(hSubKey);
+		return false;
+	}
+
+	//Allocate space for the returned value
+	*lpData = new BYTE [*dwSize];
+	if (!(*lpData))
+	{
+		if (subKey)
+			RegCloseKey(hSubKey);
+		return false;
+	}
+	
+	// Read the value
+	res = RegQueryValueEx(
+		hSubKey,           // handle to key
+		Value_Name,    // value name
+		0,             // reserved
+		dwType,       // type buffer
+		*lpData,        // data buffer
+		dwSize        // size of data buffer
+	);
+
+	if (subKey)
+			RegCloseKey(hSubKey);
+
+	if (res != ERROR_SUCCESS)
+		return false;
+	else
+*/
+		return true;
+}
+
+bool AccessManager::getValueFromRegistry (HKEY hKey, 
+									     const char *subKey,
+										 const char *Value_Name, 
+										 LPBYTE lpData, 
+										 DWORD *dwType, 
+										 DWORD *dwSize)
+{
+	long res;
+	HKEY hSubKey;
+	if (subKey)
+	{
+		hSubKey = OpenSubKey(hKey, subKey);
+		if (!hSubKey)
+			return false;
+	}
+	else
+		hSubKey = hKey;
+
+	// Read the value
+/*
+	res = RegQueryValueEx(
+		hSubKey,           // handle to key
+		Value_Name,    // value name
+		0,             // reserved
+		dwType,       // type buffer
+		lpData,        // data buffer
+		dwSize        // size of data buffer
+	);
+
+	if (subKey)
+			RegCloseKey(hSubKey);
+
+	if (res != ERROR_SUCCESS)
+		return false;
+	else
+*/
+		return true;
+}
+
+bool AccessManager::FindKey(HKEY hKey, const char *aid, 
+						   char term_aid[], int *aid_len)
+{
+/*
+	long res = ERROR_SUCCESS;
+	int indx = 0;
+	char *pTemp = 0;
+	int temp_len = 0;
+	DWORD dwSize;
+
+	while (res == ERROR_SUCCESS)
+	{
+		FILETIME LastWriteTime;
+
+		dwSize = *aid_len;
+		res = RegEnumKeyEx(
+				hKey,           // handle to key to enumerate
+				indx,           // subkey index
+                term_aid,         // subkey name
+                &dwSize,        // size of subkey buffer
+				NULL,           // reserved
+				NULL,           // class string buffer
+                NULL,           // size of class string buffer
+                &LastWriteTime  // last write time
+				);
+		if (res == ERROR_SUCCESS)
+		{
+			if (!CompareAID((byte*)term_aid, (int)dwSize, (byte*)aid, 
+				(int)strlen(aid)))
+				indx++;
+			else
+			{
+				// Found the key for this AID
+				if (dwSize == (DWORD)strlen(aid))
+				{ 
+					// Exact match -- return true
+					*aid_len = dwSize;
+					if (pTemp)
+						delete [] pTemp;
+					return true;
+				}
+				else
+				{
+					// Partial match -- save the first partial match into the 
+					// temporary buffer and try to find an exact match
+					if (!pTemp)
+					{
+						pTemp = new char [dwSize + 1];
+						strcpy(pTemp, term_aid);
+						temp_len = dwSize;
+					}
+					indx++;
+				}
+			}
+		}
+	}
+	// Exact match was not found
+	if (pTemp)
+	{
+		// Partial selection has been found -- use it
+		strcpy(term_aid, pTemp);
+		*aid_len = dwSize;
+		delete [] pTemp;
+		return true;
+	}
+*/
+	return false;
+}
+
+bool AccessManager::CompareAID (byte aid_term[], int term_len, 
+							    const byte *aid_card, int card_len)
+{
+	if (term_len > card_len)
+		return false;
+	for (int i = 0; i < term_len; i++)
+	{
+		if (aid_term[i] != aid_card[i])
+			return false;
+	}
+	return true;
+}
+
+const char* AccessManager::getApplicationName()
+{
+	return ApplInfo.ApplName;
+}
+
+bool AccessManager::getAID(byte AID[], int *aid_len)
+{
+	if (ApplInfo.aid_len == 0)
+	{
+		*aid_len = -1;
+		return false;
+	}
+
+	if (*aid_len < ApplInfo.aid_len)
+	{
+		*aid_len = ApplInfo.aid_len;
+		return false;
+	}
+
+	memcpy (AID, ApplInfo.AID, ApplInfo.aid_len);
+	*aid_len = ApplInfo.aid_len;
+	return true;
+}
+
+void AccessManager::initPOS (const byte *aid,
+							 const int aid_len, 
+							 amAdder *am)
+{
+	AccessManager *pAm = new AccessManager (aid, aid_len);
+	am->AM = pAm;
+}
+
+void AccessManager::initControl (amAdder *am)
+{
+	am->AM = this;
+}

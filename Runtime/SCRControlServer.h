@@ -1,0 +1,74 @@
+// SCRControl Service
+// SCRControl Interface Implementation -- Server Side, DLL entry point
+
+#ifndef SCRCONTROLSERVER_H
+#define SCRCONTROLSERVER_H
+// The following ifdef block is the standard way of creating macros which make exporting 
+// from a DLL simpler. All files within this DLL are compiled with the SCRCONTROLSERVER_EXPORTS
+// symbol defined on the command line. this symbol should not be defined on any project
+// that uses this DLL. This way any other project whose source files include this file see 
+// SCRCONTROLSERVER_API functions as being imported from a DLL, whereas this DLL sees symbols
+// defined with this macro as being exported.
+/*
+		Windows-specific --NT
+#ifdef SCRCONTROLSERVER_EXPORTS
+#define SCRCONTROLSERVER_API __declspec(dllexport)
+#else
+#define SCRCONTROLSERVER_API __declspec(dllimport)
+#endif
+*/
+
+#define SCRCONTROLSERVER_API 
+
+#include "SCRControlImpl.h"
+#include "AccessManager.h"
+#include <map>
+#include <winscard.h>
+#include "../Utility/C_APDU.h"
+#include "../Utility/R_APDU.h"
+
+typedef std::map<UINT_KEY, SCRControlImpl*> MAP;
+
+static MAP Map;
+
+
+static void cleanMap();
+SCRControlImpl* getPointer(int key);
+
+// Export Function
+// Access Manager related functions
+extern "C" SCRCONTROLSERVER_API int open(AccessManager *am, 
+										  UINT_KEY *key);
+
+// The folowing declaration conflicts with UNIX's one:
+//extern "C" SCRCONTROLSERVER_API void close(UINT_KEY *key);
+extern "C" SCRCONTROLSERVER_API unsigned int connectedServices();
+
+// Event Adder functions
+extern "C" SCRCONTROLSERVER_API int addOperationEvent(UINT_KEY Key,
+													   OperationEvent *opEvent);
+extern "C" SCRCONTROLSERVER_API void removeEvent (UINT_KEY Key);
+extern "C" SCRCONTROLSERVER_API bool eventAttached (UINT_KEY Key);
+
+// Interface functions
+extern "C" SCRCONTROLSERVER_API int  EstablishConnection (UINT_KEY Key);
+extern "C" SCRCONTROLSERVER_API void DestroyConnection (UINT_KEY Key);
+extern "C" SCRCONTROLSERVER_API int  RegisterEvent (UINT_KEY Key, 
+													int eventID, 
+												    CallBackFunc pEventFunc); 
+extern "C" SCRCONTROLSERVER_API void  UnRegisterEvent (UINT_KEY Key, 
+													  int eventID); 
+extern "C" SCRCONTROLSERVER_API int  SendCommand (UINT_KEY Key,
+												  const byte *capdu, 
+												  unsigned int capdu_len,
+												  const long TransactionToken);
+extern "C" SCRCONTROLSERVER_API bool IsInitialized(UINT_KEY Key);
+extern "C" SCRCONTROLSERVER_API int BeginTransaction(UINT_KEY Key,
+													 long &TransactionToken);
+extern "C" SCRCONTROLSERVER_API void EndTransaction(UINT_KEY Key,
+													long &TransactionToken);
+extern "C" SCRCONTROLSERVER_API bool IsTransactionAlive(UINT_KEY Key,
+														long TransactionToken);
+
+
+#endif

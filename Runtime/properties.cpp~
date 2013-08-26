@@ -1,0 +1,279 @@
+/*==========================================================================
+ *
+ *  !PROPERTIES.C   functions								   June 10, 2005
+ *
+ *  Source Code for Properties File Utililty Functions
+ * 
+ *  Utility functions to read properties from a properties file and load them
+ *  into memory as a linked list. Once read, any property can be accessed at
+ *  any point of time by calling the getProperty function.
+ *
+ *  Author: Manav Garg (manav_garg@hotmail.com)
+ *==========================================================================*/
+
+#include "properties.h"
+
+char fline[MAXDATASIZE];				//call me hog but I do real work
+
+int propertyCount =0;					//property count
+
+/*----------------------------------------------------------------------------
+ * Entry point of the the utility application. 
+ * Sequence of doing the operations should be:
+   - Load the file
+   - Load the properties from the file
+   - work with the properties/property values 
+   - cleanup the list at the end of the work.
+ * IN >> None
+ * OUT<< None
+ */
+/*
+int main(int argc, char *argv[])
+{
+										//file name can include the path like e.g.
+										//"c:/demo/properties/file.properties"
+    char * filename="c:/demo/prop1/Debug/file.properties";	
+
+    char searchValue[MAXVALUESIZE] = {""};
+
+	loadPropertyFile(filename);			//open the pandora's box
+	loadProperties();					//load the props from the file
+	listProperties ();					//list all the properties ya got
+										//get me the property count
+	printf("\n\nProperty Count        : %d\n", getPropertyCount());
+										//get me a property value
+	getProperty("property2", &searchValue[0]);
+	printf("\nValue for property2   : %s\n", searchValue);
+										//get me a property value
+	getProperty("myproperty2", &searchValue[0]);
+	printf("\nValue for myproperty2   : %s\n", searchValue);
+
+	cleanup ();							//please return my resources
+
+}
+*/
+
+/*----------------------------------------------------------------------------
+ * Loads the properties from the properties file
+ * IN >> None
+ * OUT<< None
+ */
+void loadProperties()
+{
+	char property[MAXPROPSIZE]={""};	//hog user memory		
+	char value[MAXVALUESIZE]={""};		//hog more memory
+	int index=-1;						//index for the delimiter
+	int lineNumber=1;					//line count in properties file
+										
+										//read each line of text from prop file
+    while(fgets(fline, MAXDATASIZE, fp) != NULL)
+    {
+	   if (ISDEBUG) printf("loadProperties() : fline = [%s]\n", fline);
+										//does the delimiter exist in the line?		
+	   index = searchString (DELIMITER, fline, 0);
+	   if (ISDEBUG) printf("loadProperties() : index = [%d]\n", index);
+	   if (index<=0) {					//no delimiter, move to next line
+	       if (ISDEBUG) 
+			   printf("loadProperties() : Unusable line %d\n",lineNumber);
+		   continue;	
+	   } else {							//found delimiter
+										//get the property name
+		 strncpy(property,&fline[0],index);
+		 trim(property);				//remove leading and trailing spaces
+										//next, get the property value
+		 strncpy(&value[0],&fline[index + DELIMITERSIZE],(strlen(fline)-(index+DELIMITERSIZE)));
+		 trim(value);					//remove leading and trailing spaces
+	   }
+       if (ISDEBUG) printf("loadProperties() : property = [%s]\n", property);
+       if (ISDEBUG) printf("loadProperties() : value = [%s]\n", value);
+	   addProperty(property, value);	//add the property to the list	
+	   strncpy(property,"",index);		//clear the memory hog
+	   strncpy(&value[0],"",(strlen(fline)-index));	
+	   lineNumber++;					//increment line number count
+    }
+}
+
+/*----------------------------------------------------------------------------
+ * Loads the properties file
+ * IN >> filename (Name of the properties file)
+ * OUT<< None
+ */
+void loadPropertyFile( char * filename )
+{
+    if(!(fp = fopen(filename, "r"))) {	//try to open the file in read mode
+        printf("Error: Could not open file: %s\n", filename);
+        exit(1);						//unable to open the file
+    }
+}
+
+/*----------------------------------------------------------------------------
+ * Add the property read from the file to the internal data structure
+ * IN >> property  (Property name) 
+ * IN >> value     (Corresponding value of the property)
+ * OUT<< None
+ */
+void addProperty (char* property, char* value) 
+{
+    PROPERTY *new_node;					//node handle
+										//make room for daddy
+    new_node= (PROPERTY *)malloc (sizeof (PROPERTY));
+										//couldn't make room for daddy
+    if (new_node == NULL) {				
+        printf ("Out of memory!\n");	
+        exit (-1);						//boom!	Get me outta here.
+    }
+	if (ISDEBUG) 
+		printf ("\naddProperty(): Added new property: %s = %s", property,value);
+										//set the property name in the node
+	new_node->property = strdup(property);
+	new_node->value=strdup(value);		//set the property value in the node
+
+    new_node->next= node;				//my tail points to the node now
+    node= new_node;						//set it up	
+	propertyCount++;					//another one bites the dust
+}    
+
+/*----------------------------------------------------------------------------
+ * Returns the count of properties currently loaded in the list
+ * IN >> None
+ * OUT<< int count (The count of properties currently present in memory)
+ */
+int getPropertyCount()
+{
+	return propertyCount;				//return the properties count so far
+}
+
+/*----------------------------------------------------------------------------
+ * Cleans up the data structures created to read the properties
+ * [DO NOT FORGET TO CLEANUP AT THE END OF THE APPLICATION TO AVOID
+ *  EATING UP YOUR MEMORY]
+ * IN >> None
+ * OUT<< None
+ */
+void cleanup (void)
+{
+    PROPERTY *del_ptr;					//my pointer	
+    while (node != NULL) {				//while im still going
+       del_ptr= node;					//bring me to the head
+       node= node->next;				//point to the next node
+       free(del_ptr);					//free the node
+    }
+	if (ISDEBUG) 
+		printf ("\n\ncleanup(): Done freeing up memory from the list. \n");
+}
+
+/*----------------------------------------------------------------------------
+ * Get the value of a property (from the list) 
+ * IN >> property  (Property name) 
+ * OUT>> value     (Returns value of the corresponding property)
+ */
+void getProperty (char* property, char* value)
+{
+    PROPERTY *prev_ptr;					//can't do without me	
+											
+    if (node == NULL) {					//No properties have been loaded
+        if (ISDEBUG) 
+			printf ("No properties have been loaded yet.\n");
+        return;
+    }
+											
+    prev_ptr= node;						//bring to the top
+    while (prev_ptr != NULL) {			//while more elements in the list
+										//found the property?
+		if (strcmp(prev_ptr->property, property) == 0) {
+			if (ISDEBUG) 
+				printf ("getProperty(): value = %s \n",prev_ptr->value);
+										//get the value for the property then
+			strcpy(value,prev_ptr->value);
+			if (ISDEBUG) 
+				printf ("getProperty(): Property %s = %s \n",property,value);
+            return;
+        }									
+        prev_ptr= prev_ptr->next;		//take me to the next node
+    }
+    if (ISDEBUG) 
+		printf ("\nProperty [%s] not found.\n", property);
+}
+
+/*----------------------------------------------------------------------------
+ * Displays the properties read from the properties file (debug function)
+ * IN >> None
+ * OUT<< None
+ */
+void listProperties (void)
+{
+    PROPERTY *tmp_ptr;					//can't do without me	
+    if (ISDEBUG) printf ("\nAll properties in property file:");
+    tmp_ptr= node;						//bring me to the head
+    while (tmp_ptr != NULL) {			//while not reached my tail
+										//print property, value
+		printf ("\n%s : %s ",tmp_ptr->property, tmp_ptr->value);
+        tmp_ptr= tmp_ptr->next;			//move me to the next node
+    }
+}
+
+/*----------------------------------------------------------------------------
+ * Cleans up the data structures created to read the properties
+ * IN >> search    (The string that is to be searched)
+ * IN >> string    (The source string)
+ * IN >> offset    (Offset on where to begin the search in 'string')
+ * OUT<< int index (Index on where 'search' was found in 'string')
+ */
+int searchString (const char *search, const char *string, int offset)
+{
+    int stlen=strlen(string);			//source string length
+    int srlen=strlen(search);			//search string length
+    int counter=0;						//Main string counter
+    int sublcv=0;						//Search String counter
+    int start=-1;						//Substring index indicator
+
+    if(srlen>stlen) {
+        return(-2);						//Think daddy is a fool?
+    }
+										//step through the string
+    for(counter=offset;counter<=(stlen-srlen); counter++) {
+										//found, then move ahead!
+        if(string[counter]==search[sublcv]) {
+            while(sublcv<=srlen)  {		//string comparison
+										//do the characters correspond
+                if(search[sublcv]==string[sublcv+counter]) {
+                    sublcv++;			//check next if correct
+                } else {
+                    sublcv=srlen+1;		//over step the counter
+                }
+                if(sublcv==srlen)  {	//all of the string was searche through
+                    start=counter;		//current counter is start pos of substr
+										//end the loop
+                    counter=(stlen-srlen)+1; 
+                }
+            }
+        }
+        sublcv=0;						//reset sub lcv;
+    }
+    return(start);						//index of substring, -1 not found
+}
+
+/*----------------------------------------------------------------------------
+ * Get the value of a property (from the list) 
+ * IN >> daddy	   (String to be trimmed) 
+ * OUT>> char *    (Trimmed input string)
+ */
+static char *trim( char *daddy)
+{
+	char *input, *output;
+	if (daddy) {						//if daddy exists
+		for (input = output = daddy; *input; ) {
+										//trim the leading spaces first
+			while (*input && (isspace (*input)))
+				input++;				//next char
+			if (*input && (output != daddy))
+				*(output++) = ' ';		
+										//trim the trailing spaces
+			while (*input && (!isspace (*input)))
+				*(output++) = *(input++);
+		}								//give me an end point or im lost
+			*output=0;
+	}
+	return (daddy);
+}
+/*==========================================================================*/

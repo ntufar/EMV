@@ -1,0 +1,107 @@
+#include <stdio.h>
+#include <string.h>
+#include "..\Runtime\AccessManager\AccessManager.h"
+#include "..\Runtime\SystemControlInterface\SystemControlInterface.h"
+
+int main ()
+{
+
+int res;
+AccessManager AM (1);
+
+// Test System Control INterface ands then delet
+SystemControlInterface sys;
+if ((res = AM.open(&sys)) != SUCCESS)
+{
+	printf("Error opening system control interface (%x)\n", res);
+	return 1;
+}
+int fd;
+res = sys.openFile(".\\testFile.txt", SCS_FILE_APPEND | SCS_FILE_CREATE |
+				   SCS_FILE_RW, &fd);
+if (res != SUCCESS)
+{
+	printf("Error opening the file (%x)\n", res);
+	return 1;
+}
+
+// Adding few lines into the file
+char buff[255];
+sprintf(buff, "Line #1");
+res = sys.writeFile(fd, buff, (UNINT)strlen(buff), SCS_FILE_LN_MODE);
+if (res !=SUCCESS)
+{
+	printf("Failed to write to the file the file (%x)\n", res);
+	return 1;
+}
+sprintf(buff, "Line #2 -- this is a little longer line");
+res = sys.writeFile(fd, buff, (UNINT)strlen(buff), SCS_FILE_LN_MODE);
+if (res !=SUCCESS)
+{
+	printf ("Failed to write to the file the file (%x)\n", res);
+	return 1;
+}
+sprintf(buff, "Line #3 - this is really long line (nl)\nwich just goes and comes and never ends and it is so frastrating\n because you just try and cannot reach the end of the line!");
+res = sys.writeFile(fd, buff, (UNINT)strlen(buff), SCS_FILE_LN_MODE);
+if (res !=SUCCESS)
+{
+	printf("Failed to write to the file the file (%x)\n", res);
+	return 1;
+}
+
+if ((res = sys.closeFile (fd)) != SUCCESS)
+	printf("Failed to close the file (%x)\n", res);
+
+printf ("Everything is OK writing, now try reading!!!\n");
+
+int fd2;
+res = sys.openFile(".\\testFile.txt", SCS_FILE_RDONLY, &fd2);
+if (res != SUCCESS)
+{
+	printf("Error opening the file (%x)\n", res);
+	return 1;
+}
+
+SystemOperationEventImpl sysEvent;
+sys.addOperationEvent (&sysEvent);
+int ii = 1;
+int sz;
+while ((res = sys.readFile(fd2, 0, 0)) == SUCCESS)
+{
+	sz = sysEvent.getLength();
+	if (sz <= 0)
+	{
+		printf ("Nothing has been read from the file\n");
+		break;
+	}
+	else
+	{
+		char *tmp = new char [sz];
+		if ((res = sysEvent.getText(tmp, (UNINT*)&sz)) == SUCCESS)
+			printf ("The %d line has been read (%d):\n*%s*\n", ii++, sz, tmp);
+		else
+		{
+			delete [] tmp;
+			printf ("Failed to retrieve the text from the Operation Event (%x)\n",
+				res);
+			break;
+		}
+		delete [] tmp;
+	}
+	sysEvent.resetEvent(true);
+}
+if (res != SUCCESS && sysEvent.getError() != ERR_FILE_IO_EOF)
+{
+	printf ("Failed reading the file (%x)\n", sysEvent.getError());
+}
+
+if ((res = sys.closeFile (fd2)) != SUCCESS)
+	printf("Failed to close the file (%x)\n", res);
+
+AM.close (sys);
+
+printf ("Everything is OK reading!!!\n");
+
+return 0;
+// ---- End of System Control Interface test
+} // End of main

@@ -1,0 +1,31 @@
+*** Project/ HeaderFile: Error ***
+------------------------------------------------
+Runtime:
+
+ServiceControl/ errors.h:                 0x8XXXXXXX
+AccessManager/ AccessManager.h:           0xEXXXXXXX
+CnfgControl/ CnfgInterface.h:             0x8DXXXXXX
+CryptoControl/ CryptoErrors.h:            0x9XXXXXXX
+CryptoControlInterface/ CryptoMeErrros.h: 0x9XXXXXXX
+SCRControl/ SCRInterface.h:               0x7XXXXXXX
+UIControl/ UIInterface.h:                 0xFXXXXXXX
+HostControl/ HostInterface.h:             0xC1XXXXXX
+Utility/ APDU.h:                          0xFFFFXXXX
+Utility/ tlv.h:                           0xFFFEXXXX
+SystemControl/SystemInterface.h:		  0xA7XXXXXX
+-------------------------------------------------
+
+EMV_Library:
+
+ApplicationSelection/ ApplSelector.h:      0xA0XXXXXX
+EMV_Functions/ EMV_Context.h:              0xAAXXXXXX
+EMV_Functions/ CVM_List.h:				   0xABXXXXXX
+EMV_Functions/ CVM_Rules.h:				   0xA1XXXXXX
+EMV_Functions/ emv_constants.h             0xA2XXXXXX
+EMV_Functions/ IssuerScriptProcessing.h    0xA6XXXXXX
+EMV_Functions/ Context.h                   0xBXXXXXXX
+
+----------------------------------------------------
+CLC/POS VSDC Module Implementation specific:
+Runtime/ CLCControl/ CLCInterface.h:         0xCCXXXXXX
+Runtime/ POSControl/ POSInterface.h:         0cCDXXXXXX

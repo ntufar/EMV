@@ -1,0 +1,1466 @@
+#include "UIControlImpl.h"
+#include "patch.h"
+#include <stdio.h>
+#include "stdafx.h"
+
+UIControlImpl::UIControlImpl()
+{
+	LanguageID = DEFAULT_LANG;
+}
+
+UIControlImpl::~UIControlImpl(void)
+{
+	LanguageID = DEFAULT_LANG;
+	setServiceName("UIControl");
+	opEvent = new UIOperationEventImpl;
+}
+
+// UI Interface Definition
+// Sets the value of the text box
+int UIControlImpl::setText(const int TextBoxID, 
+					const char* text, int LangID)
+{
+	return setControlText (TextBoxID, text, LangID);
+}
+
+// UI Interface Definition
+// Sets the value of the text box
+int UIControlImpl::getText(const int TextBoxID)
+{
+
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	long res = checkInitialization ();
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	int controlID = GetControlID(TextBoxID);
+	if (controlID == -1)
+		return pEvent->setError (ERR_INVALID_CONTROL_ID, RUNTIME_EXECUTION);
+
+	// Get handle to the control
+	HWND hwndEdit; 
+	//hwndEdit = GetDlgItem(*hwndDlg, controlID); 
+	if (!hwndEdit)
+		return pEvent->setError (ERR_INVALID_CONTROL_ID, RUNTIME_EXECUTION);
+	
+	// Get the length of the text required
+	//int len = (int)SendMessage(hwndEdit, WM_GETTEXTLENGTH, 0, 0); 
+	if (len <= 0)
+	{
+		return pEvent->setString ("");
+	}
+	else
+	{
+		char *temp = new char [len + 1];
+		if (!temp)
+			return pEvent->setError (ERR_MEMORY_ALLOC, RUNTIME_EXECUTION);
+
+		//SendMessage(hwndEdit, WM_GETTEXT, (WPARAM)len, (LPARAM)temp); 
+		res = pEvent->setString (temp);
+		delete [] temp;
+		return res;
+	}
+*/
+}
+
+int UIControlImpl::setControlText(const int TextBoxID, 
+					const char* text, int LangID)
+{
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return res;
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return ERR_TERMINAL_WINDOW_IS_NOT_RUNNING;
+	}
+
+	int controlID = GetControlID(TextBoxID);
+	if (controlID == -1)
+		return ERR_INVALID_CONTROL_ID;
+
+	if (text)
+	{
+		// Set the string in the dialog box
+		if (controlID == IDC_EDIT_AMOUNT)
+		{
+			char *temp = new char [strlen(text) + 1];
+			if (!temp)
+				return ERR_MEMORY_ALLOC;
+
+			strcpy(temp, text);
+			int i = 0;
+			while (temp[i] != '\0')
+			{
+				if (temp[i] == '.')
+				{
+					temp[i] = '\0';
+					break;
+				}
+				i++;
+			}
+
+			if (strlen(temp) == 0)
+				res = SetDlgItemText(*hwndDlg, 	controlID, "0");
+			else
+				res = SetDlgItemText(*hwndDlg, 	controlID, temp);
+			if (i == strlen(temp) || strlen(temp + i + 1) == 0)
+				res = SetDlgItemText(*hwndDlg, 	IDC_EDIT_CENTS, "0");
+			else
+				res = SetDlgItemText(*hwndDlg, 	IDC_EDIT_CENTS, temp + i + 1);
+			delete [] temp;
+		}
+		else
+		{
+			res = SetDlgItemText(
+				*hwndDlg,         // handle to dialog box
+				controlID,       // control identifier
+				text           // text to set
+			);
+		}
+		if (res == 0)
+		{
+			return ERR_SETTING_STRING;
+		}
+		else
+			return SUCCESS;
+	}
+	else
+*/
+		return SUCCESS;
+}
+
+int UIControlImpl::GetControlID(const int ControlID)
+{
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	switch (ControlID)
+	{
+	case TEXTBOX_AMOUNT:
+		return IDC_EDIT_AMOUNT;
+	case TEXTBOX_CASHAMOUNT:
+		return IDC_EDIT_AMOUNT;
+	case TEXTBOX_PROMPT:
+		return IDC_PROMPT;
+	case TEXTBOX_INPUT1:
+		return IDC_EDIT_AMOUNT;
+	case IDC_LIST_OPTIONS:
+		return IDC_LIST_OPTIONS;
+	case IDC_CURRENCY_COMBO:
+		return IDC_CURRENCY_COMBO;
+	case TEXTBOX_OUTPUT1:
+		return IDC_EDIT_TRANSACTION_STATUS;
+	default:
+		return -1;
+	}
+*/
+	return -1;
+}
+
+// Currently multi-languages are not supported -- LATIN1 is always used
+int UIControlImpl::setPrompt(const char* prompt, int LangID)
+{
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (prompt)
+		return setControlText(TEXTBOX_PROMPT, prompt, LangID);
+	else
+*/
+	printf("setPrompt(): %s\n", prompt);
+		return SUCCESS;
+}
+
+
+// This is an example of an exported function.
+int UIControlImpl::writeStatus(const char *str, bool concatinate, int LangID)
+{
+
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return res;
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return ERR_TERMINAL_WINDOW_IS_NOT_RUNNING;
+	}
+
+	char *pStr = "";
+	if (!str)
+		str = pStr;
+
+	// Get a handle to a ListBox
+	HWND hwndEdit; 
+	hwndEdit = GetDlgItem(*hwndDlg, IDC_EDIT_TRANSACTION_STATUS); 
+
+	char buff[TRANSACTION_STATUS_SIZE];
+	char *newLine = "\r\n";
+	UINT uintRes;
+	int textLimit = TRANSACTION_STATUS_SIZE;
+
+	// Get input string length
+	int strLen = (int)strlen (str);
+	if (strLen > textLimit - 1)
+	{
+		// Input string is bigger than the maximum size of the Edit box - 
+		//   truncate the string
+		strncpy (buff, str, textLimit - 1);
+		buff[textLimit-1] = '\0';
+	}
+	else
+	{
+		if (concatinate)
+		{
+			// Concatinate a new string with the existing string
+			uintRes = GetDlgItemText(
+					*hwndDlg,         // handle to dialog box
+					IDC_EDIT_TRANSACTION_STATUS,       // control identifier
+					buff,             // pointer to buffer for text
+					textLimit              // maximum size of string
+					);
+			if (uintRes == 0)
+			{
+				//Edit box is empty, simply copy the string
+				strncpy (buff, str, textLimit-1);
+			}
+			else
+			{
+				// Compare existing string + new string and see if the existing
+				// string inside Edit box needs to be truncated in order to fit
+				// the input string.
+				int retCh = 0;
+				// Check if existing string has line feed and new characters
+				if (uintRes >= 2)
+				{
+					if (buff[uintRes - 1] != '\n' || buff[uintRes - 2] != '\r')
+						retCh = 2;
+				}
+				int extraStr = strLen + retCh + 1 + uintRes - textLimit;
+				if (extraStr > 0)
+				{
+					//remove extra string from the beginning of the string	
+					for (int i = extraStr; buff[i] != '\0'; i++)
+						buff[i-extraStr] = buff[i];
+					buff[i-extraStr] = '\0';
+
+					int newStrsz = (int)strlen(buff);
+					if (retCh == 2)
+					{
+						strcat (buff, newLine);
+					}
+					strcat (buff, str);		
+				}
+				else // (extraStr <= 0)
+				{
+					if (retCh == 2)
+						strcat (buff, newLine);
+					strcat (buff, str);
+				}
+			}
+		}
+		else
+		{
+			// Do not concatinate, therefore simply copy the string
+			strcpy (buff, str);
+		}
+	}
+
+	// Write the status string
+	res = SetDlgItemText(
+		*hwndDlg,         // handle to dialog box
+        IDC_EDIT_TRANSACTION_STATUS,       // control identifier
+        buff   // text to set
+    );
+	if (res == 0)
+	{
+		//Error setting the string
+		return ERR_SETTING_STRING;
+	}
+	else
+	{
+		//Success setting the string
+		// Scroll down in order to show the last line
+		// First, find out how many lines are in a text box
+		if (concatinate)
+		{
+			LRESULT numLn = SendMessage( 
+				hwndEdit,          // handle to destination window 
+				EM_GETLINECOUNT,      // message to send
+				(WPARAM) 0,      // not used; must be zero
+				(LPARAM) 0       // not used; must be zero
+				);
+
+			// Scroll down the number of lines found at previous step
+			SendMessage( 
+				(HWND) hwndEdit,        // handle to destination window 
+				EM_LINESCROLL ,      // message to send
+				(WPARAM) 0,    // horizontal scroll increment
+				(LPARAM) numLn     // vertical scroll increment
+			);
+		}
+		return SUCCESS;
+	}
+*/
+	printf("writeStatus(): %s\n", str);
+	return SUCCESS;
+}
+
+int UIControlImpl::receiveString(const char *prompt, int timeout, int LangID)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	char outBuff[AMOUNT_SIZE];
+	int buffLen = AMOUNT_SIZE;
+
+	long res = checkInitialization ();
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Set prompt
+	if ((res = setPrompt(prompt, LangID)) != SUCCESS)
+		return pEvent->setError(res, RUNTIME_EXECUTION);
+	
+	// Set focus
+	SendMessage (*hwndDlg, UWM_SETFOCUS, IDC_EDIT_AMOUNT, 0);
+
+	int eventIDs[2] = {BTN_ENTER, BTN_CANCEL};
+	int receivedEvent;
+	UINT uintRes;
+
+	res = waitForEvent(eventIDs, 2, &receivedEvent, timeout);
+	if (res == SUCCESS)
+	{
+		switch (receivedEvent)
+		{
+		case BTN_ENTER:
+			// Enter button has been clicked
+			// Get size of the edit box
+
+			// Get the string from the dialog box
+			uintRes = GetDlgItemText(
+				*hwndDlg,         // handle to dialog box
+				IDC_EDIT_AMOUNT,       // control identifier
+				outBuff,             // pointer to buffer for text
+				buffLen              // maximum size of string
+				);
+			if (uintRes == 0)
+			{ 
+				//Handle error
+				return pEvent->setError (ERR_FAILED_TO_RETREIVE_DATA, RUNTIME_EXECUTION);
+			}
+			else
+			{
+				// SUCCESS: Return the number of characters in a buffer
+				pEvent->setString (outBuff);
+				res = pEvent->setButton (BTN_ENTER);
+			}
+			break;
+		case BTN_CANCEL:
+			res = pEvent->setButton (BTN_CANCEL);
+			break;
+		default:
+			res = pEvent->setButton (receivedEvent);
+		}
+	}
+	else
+	{
+		res = pEvent->setError (res, RUNTIME_EXECUTION);
+	}
+*/
+	return res;
+}
+
+
+// Promts a user to enter an amount of transaction and the currency code,
+	// and waits until the user enters the amount and clicks a button
+int UIControlImpl::getAmount(AMOUNT_TYPE amount_type,
+							 byte Amount[], 
+						     byte CurrencyCode [], 
+						     int timeout, int LangID)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, RUNTIME_EXECUTION);
+	}
+
+	// Set prompt
+	if ((res = setPrompt(Language::getString (MSG_ID__ENTER_AMOUNT, LangID), 
+		LangID)) != SUCCESS)
+		return pEvent->setError (res, RUNTIME_EXECUTION);
+	
+	// Set focus
+	SendMessage (*hwndDlg, UWM_SETFOCUS, IDC_EDIT_AMOUNT, 0);
+
+	// Clear the content of the amount box
+	SetDlgItemText(*hwndDlg, IDC_EDIT_AMOUNT, "");
+	SetDlgItemText(*hwndDlg, IDC_EDIT_CENTS, "");
+
+	int eventIDs[2] = {BTN_ENTER, BTN_CANCEL};
+	int receivedEvent;
+
+	res = waitForEvent(eventIDs, 2, &receivedEvent, timeout);
+	if (res == SUCCESS)
+	{
+		switch (receivedEvent)
+		{
+		case BTN_ENTER:
+			// Enter button has been clicked
+			pEvent->setButton (BTN_ENTER);
+			res = readAmount(amount_type, Amount, CurrencyCode);
+			break;
+		case BTN_CANCEL:
+			pEvent->setButton (BTN_CANCEL);
+			break;
+		default:
+			break;
+		}
+	}
+	
+	setPrompt("");
+	if (res == SUCCESS)
+	{
+		setPrompt("Processing...");
+		return pEvent->setSuccess ();
+	}
+	else
+		return pEvent->setError (res, RUNTIME_EXECUTION);
+*/
+	return 666;
+}
+
+	// Just reads the amount from the Amount field - doesn't prompt a 
+	// user and doesn't wait for a user input
+int UIControlImpl::readAmount(AMOUNT_TYPE amount_type,
+							  byte Amount[], byte CurrencyCode [])
+{
+/*
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return ERR_TERMINAL_WINDOW_IS_NOT_RUNNING;
+	}
+	const UNINT amount_len = 6;
+	const UNINT cur_len = 2;
+	int indx;
+	int data;
+	int res;
+
+	// Get a handle to a combo box with currency ids
+	HWND combo = GetDlgItem(*hwndDlg, IDC_CURRENCY_COMBO);
+	
+	// Get the index of currently selected item
+	indx = (int)SendMessage (combo, CB_GETCURSEL, 0, 0);
+	if (indx == CB_ERR)
+	{
+		// No currency is selected in a combo box; retreive a Terminal Country Code,
+		// and use it as a default currency id
+		//if ((res = SetDefaultCurrencyID(CurrencyCode)) != SUCCESS)
+			return ERR_MISSING_CURRENCY_CODE;
+	}
+	else
+	{
+		data = (int)SendMessage (combo, CB_GETITEMDATA, indx, 0);
+		if (data == CB_ERR)
+		{
+			// Failed to retreive a currency data from a combo box; 
+			// retreive a Terminal Country Code, and use it as a default currency id
+			if ((res = SetDefaultCurrencyID(CurrencyCode)) != SUCCESS)
+				return res;
+		}
+		else
+		{
+			if (CurrencyCode)
+			{
+				CurrencyCode[0] = data >> 8;
+				CurrencyCode[1] = data;
+			}
+		}
+	}
+	
+	// Get the amount string
+	char chAmount [AMOUNT_SIZE + 1];
+	int ch_size;
+	ch_size = GetDlgItemText(*hwndDlg, IDC_EDIT_AMOUNT, chAmount, AMOUNT_SIZE + 1);
+	
+	// Get the exponent (e.g. cents) of the amount
+	char exp[AMOUNT_SIZE + 1];
+	int exp_size;
+	exp_size = GetDlgItemText(*hwndDlg, IDC_EDIT_CENTS, exp, AMOUNT_SIZE + 1);
+
+	// Convert An amount to 6-byte, n12 format
+	if (asciAmount2numeric (chAmount, exp,  (data >> 12), Amount))
+		return SUCCESS;
+	else
+		return ERR_UNEXPECTED_TYPE;
+	*/
+	return 666;
+}
+
+void UIControlImpl::resetAmount(AMOUNT_TYPE amount_type)
+{
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return;
+	if (!IsWindow())
+		return;
+
+	//SetDlgItemText(*hwndDlg, IDC_EDIT_AMOUNT, ""); 
+	//SetDlgItemText(*hwndDlg, IDC_EDIT_CENTS, ""); 
+
+}
+
+
+int UIControlImpl::getResponse(const char *prompt, int timeout, int LangID)
+{
+	long res = checkInitialization ();
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+
+	// Set prompt
+	if ((res = setPrompt(prompt, LangID)) != SUCCESS)
+		return pEvent->setError(res, RUNTIME_EXECUTION);
+
+	// Wait until any button is clicked
+	res = WaitForButtonClick (timeout);
+	switch (res)
+	{
+	case BTN_ENTER:
+	case BTN_CLEAR:
+	case BTN_CANCEL:
+	case CANCEL_WAIT:
+	case BTN_EXIT:
+		break;
+	default:
+		return pEvent->setError (res, RUNTIME_EXECUTION);
+	}
+
+	setPrompt("Processing...");
+	return pEvent->setButton (res);
+}
+
+int UIControlImpl::waitForEvent(int wait_EventID[], int num_events,
+								int *received_EventID, int timeout)
+{
+	long res = checkInitialization (false);
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	// Cast the OperationEvent object to the appropriate type
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return ERR_TERMINAL_WINDOW_IS_NOT_RUNNING;
+	}
+	
+	// Allocate an array to hold the handles to the corresponding events
+	HANDLE *handleArr = new HANDLE [num_events + 1];
+	if (!handleArr)
+		return ERR_MEMORY_ALLOC;
+
+	// Initialize handle array
+	int j = 0;
+	bool extCancel = false;
+	for (int i = 0; i < num_events; i++)
+	{
+        if (IsValidEvent(wait_EventID[i]))
+		{
+			handleArr[j++] = event2handle(wait_EventID[i]);
+			ResetEvent (handleArr[j-1]);
+			if (wait_EventID[i] == CANCEL_WAIT)
+			{
+				extCancel = true;
+			}
+		}
+	}
+	if (j == 0)
+	{
+		// No valid events are found - exit the function 
+		delete [] handleArr;
+		return ERR_INVALID_EVENT_ID;
+	}
+	// Add additional event to catch an external cancel
+	if (!extCancel)
+	{
+		handleArr[j++] = event2handle(CANCEL_WAIT);
+		ResetEvent (handleArr[j-1]);
+	}
+
+	// Wait for event
+	res = WaitForEvent(handleArr, j, timeout);
+	if (res >= 0 && res < j)
+	{
+		// Some of the events in the array was fired
+		*received_EventID = handle2event(handleArr[res]);
+		if (!extCancel && *received_EventID == CANCEL_WAIT)
+		{
+			res = OPERATION_CANCELED_BY_USER;
+		}
+		else
+		{
+			res = SUCCESS;
+		}
+	}
+	delete [] handleArr;
+*/
+	return res;
+}
+
+
+UNINT UIControlImpl::handle2event (HANDLE hndl)
+{
+	if (hndl == *EventIDC_ENTER)
+		return BTN_ENTER;
+	else if (hndl == *EventIDC_CANCEL)
+		return BTN_CANCEL;
+	else if (hndl == *EventIDC_CLEAR)
+		return BTN_CLEAR;
+	else if (hndl == *EventIDC_EXTERNAL_CANCEL)
+		return CANCEL_WAIT;
+	else if (hndl == *EventIDC_EXIT)
+		return BTN_EXIT;
+	else
+		return 0;
+}
+
+HANDLE UIControlImpl::event2handle(UNINT eventID)
+{
+	switch (eventID)
+	{
+	case BTN_ENTER:
+		return *EventIDC_ENTER;
+	case BTN_CANCEL:
+		return *EventIDC_CANCEL;
+	case BTN_CLEAR:
+		return *EventIDC_CLEAR;
+	case CANCEL_WAIT: 
+		return *EventIDC_EXTERNAL_CANCEL;
+	case BTN_EXIT:
+		return *EventIDC_EXIT;
+	default:
+		return 0;
+	}
+}
+
+bool UIControlImpl::checkEvent(int wait_EventID[], int num_events, 
+							   int event_id, int *indx)
+{
+	for (int i = 0; i < num_events; i++)
+	{
+		if (wait_EventID[i] == event_id)
+		{
+			*indx = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UIControlImpl::IsValidEvent (int EventID)
+{
+	switch (EventID)
+	{
+	case BTN_ENTER:
+	case BTN_CANCEL:
+	case BTN_CLEAR:
+	case CANCEL_WAIT: 
+	case BTN_EXIT:
+		return true;
+	default:
+		return false;
+	}
+}
+
+int UIControlImpl::selectOption(int OptionBoxID,
+								const char *prompt,
+								const char * const optionList[],
+								const int dataList[],
+								const unsigned int numberOfOptions,
+								int timeout,
+								int *LangID)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Set prompt
+	if ((res = setPrompt(prompt)) != SUCCESS)
+		return pEvent->setError(res, RUNTIME_EXECUTION);
+
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+
+	//Reset a content of the list box
+	SendMessage (hwndList, LB_RESETCONTENT, 0, 0);
+
+	// Add items to the ListBox
+	for (unsigned int i = 0; i < numberOfOptions; i++)
+	{
+		SendMessage(hwndList, LB_ADDSTRING, 0, 
+                (LPARAM) optionList[i]);
+		if (dataList)
+			SendMessage(hwndList, LB_SETITEMDATA, i, (LPARAM) dataList[i]); 
+		else
+			SendMessage(hwndList, LB_SETITEMDATA, i, (LPARAM) i); 
+    } 
+    SetFocus(hwndList); 
+	
+	//Initialize selection index to -1 (not selected)
+	int IndxSelected = -1;
+
+	int eventIDs[3] = {BTN_ENTER, BTN_CANCEL, BTN_CLEAR};
+	int receivedEvent;
+
+	bool loop = true;
+
+	while (loop)
+	{
+		res = waitForEvent(eventIDs, 3, &receivedEvent, timeout);
+		if (res == SUCCESS)
+		{
+			switch (receivedEvent)
+			{
+			case BTN_ENTER:
+				// Enter has been click
+				// Get current selection from the list box
+				IndxSelected = (int) SendMessage(hwndList, LB_GETCURSEL, 0, 0);
+				if (IndxSelected != LB_ERR)
+				{
+					int data = (int)SendMessage(hwndList, LB_GETITEMDATA, 
+						(WPARAM)IndxSelected, 0);
+					pEvent->setData (data);
+				}
+				res = pEvent->setButton (BTN_ENTER);
+				res = pEvent->setIndex (IndxSelected);
+				loop = false;
+				break;
+			case BTN_CANCEL:
+				res = pEvent->setButton (BTN_CANCEL);
+				loop = false;
+				break;
+			case BTN_CLEAR:
+				SendMessage(hwndList, LB_SETCURSEL, -1, 0);
+				loop = true;
+				break;
+			default:
+				res = pEvent->setButton (receivedEvent);
+				loop = false;
+			}
+		}
+		else
+		{
+			res = pEvent->setError (res, RUNTIME_EXECUTION);
+			loop = false;
+		}
+	}
+	if (res == SUCCESS)
+		setPrompt("Processing...");
+*/
+	return res;
+}
+
+// Outputs a prompt and then waits until the user selects one of the
+// options from the pre-populated list (or combo) box
+int UIControlImpl::getOption (int OptionBoxID,
+						const char *prompt, 
+						int timeout,
+						int LangID)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Set prompt
+	if ((res = setPrompt(prompt)) != SUCCESS)
+		return pEvent->setError(res, RUNTIME_EXECUTION);
+	
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+
+	SetFocus(hwndList); 
+	
+	//Initialize selection index to -1 (not selected)
+	int IndxSelected = -1;
+
+	int eventIDs[3] = {BTN_ENTER, BTN_CANCEL, BTN_CLEAR};
+	int receivedEvent;
+
+	bool loop = true;
+
+	while (loop)
+	{
+		res = waitForEvent(eventIDs, 3, &receivedEvent, timeout);
+		if (res == SUCCESS)
+		{
+			switch (receivedEvent)
+			{
+			case BTN_ENTER:
+				// Enter has been click
+				// Get current selection from the list box
+				IndxSelected = (int) SendMessage(hwndList, LB_GETCURSEL, 0, 0);
+				if (IndxSelected == LB_ERR)
+				{
+					// Nothing is selected; continue waiting for user 
+					// to select a valid option
+					loop = true;
+					break;
+				}
+				
+				char *item_text;
+				int item_data;
+				res = readOptionItem (hwndList, IndxSelected, 
+						&item_text, &item_data);
+				if (res == SUCCESS)
+				{
+					// save retreived data inot the Operation Event object
+					res = pEvent->setButton (BTN_ENTER);
+					res = pEvent->setIndex (IndxSelected);
+					res = pEvent->setData(item_data);
+					res = pEvent->setString (item_text);
+					delete [] item_text;
+				}
+				loop = false;
+				break;
+			case BTN_CANCEL:
+				res = pEvent->setButton (BTN_CANCEL);
+				loop = false;
+				break;
+			case BTN_CLEAR:
+				SendMessage(hwndList, LB_SETCURSEL, -1, 0);
+				loop = true;
+				break;
+			default:
+				res = pEvent->setButton (receivedEvent);
+				loop = false;
+			}
+		}
+		else
+		{
+			res = pEvent->setError (res, RUNTIME_EXECUTION);
+			loop = false;
+		}
+	}
+	if (res == SUCCESS)
+		setPrompt("Processing...");
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return res;
+}
+
+// Reads data from the Option box at the specified index (indx)
+int UIControlImpl::readOptionItem (int OptionBoxID, int indx)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+	
+	//Initialize selection index
+	int IndxSelected = indx;
+	char *item_text;
+	int item_data;
+	res = readOptionItem (hwndList, IndxSelected, 
+						&item_text, &item_data);
+	if (res == SUCCESS)
+	{
+		// save retreived data inot the Operation Event object
+		res = pEvent->setIndex (IndxSelected);
+		res = pEvent->setData(item_data);
+		res = pEvent->setString (item_text);
+		delete [] item_text;
+	}
+	else
+		res = pEvent->setError (res, RUNTIME_EXECUTION);
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return res;
+}
+
+// Reads currently selected item in the Option box
+int UIControlImpl::readCurSelOptionItem (int OptionBoxID)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+	
+	//Initialize selection index
+	int IndxSelected = OPTIONLIST_INVALID_INDX;
+
+	// Get current selection from the list box
+	IndxSelected = (int) SendMessage(hwndList, LB_GETCURSEL, 0, 0);
+	if (IndxSelected == LB_ERR)
+	{
+		// Nothing is currently selected in the Option box
+		return pEvent->setError (OPTIONLIST_NO_SELECTION, RUNTIME_EXECUTION);
+	}
+
+	char *item_text;
+	int item_data;
+	res = readOptionItem (hwndList, IndxSelected, 
+						&item_text, &item_data);
+	if (res == SUCCESS)
+	{
+		// save retreived data inot the Operation Event object
+		res = pEvent->setIndex (IndxSelected);
+		res = pEvent->setData(item_data);
+		res = pEvent->setString (item_text);
+		delete [] item_text;
+	}
+	else
+		res = pEvent->setError (res, RUNTIME_EXECUTION);
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return res;
+}
+
+// Selects the item in the Option box based on the item value
+int UIControlImpl::selectOptionItem (int OptionBoxID,
+								const char* value)
+{
+	long res = checkInitialization ();
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return res;
+
+	opEvent->begin_operation();
+
+	// Cast the OperationEvent object to the appropriate type
+	UIOperationEventImpl *pEvent = (UIOperationEventImpl*) opEvent;
+	
+	//Reset event
+	pEvent->resetEvent();
+
+	if (!IsWindow())
+	{
+		// Cannot find a dialog window
+		return pEvent->setError (ERR_TERMINAL_WINDOW_IS_NOT_RUNNING, 
+			RUNTIME_EXECUTION);
+	}
+
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+	
+	//Initialize selection index
+	int IndxSelected = 0;
+	res = SUCCESS;
+	while (res == SUCCESS)
+	{
+		char *item_text;
+		int item_data;
+		res = readOptionItem (hwndList, IndxSelected, 
+						&item_text, &item_data);
+		if (res == SUCCESS)
+		{
+			if (strcmp(value, item_text) == 0)
+			{
+				// Item is Found!
+				//Set this item as selected
+				SendMessage (hwndList, LB_SETCURSEL, IndxSelected, 0);
+				// save retreived data inot the Operation Event object
+				res = pEvent->setIndex (IndxSelected);
+				res = pEvent->setData(item_data);
+				res = pEvent->setString (item_text);
+				delete [] item_text;
+				break; // Exit WHILE loop
+			}
+			else
+			{
+				delete [] item_text;
+				IndxSelected++; // Go to the next item in the option box
+			}
+		}
+		else
+		{
+			// No more items is returned. Exit the WHILE loop
+			break;
+		}
+	} // End Of WHILE loop
+	
+	if (res != SUCCESS)
+		res = pEvent->setError (res, RUNTIME_EXECUTION);
+
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return res;
+}
+
+void UIControlImpl::resetOption(int OptionBoxID)
+{
+	long res = checkInitialization (false);
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (res != SUCCESS)
+		return;
+	if (!IsWindow())
+		return;
+
+	// Get a handle to a ListBox
+	HWND hwndList; 
+	hwndList = GetDlgItem(*hwndDlg, IDC_LIST_OPTIONS); 
+
+	//Reset a content of the list box
+	SendMessage (hwndList, LB_RESETCONTENT, 0, 0);
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+}
+
+
+char* UIControlImpl::getStdString (int StringID, const char *amount)
+{
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return NULL;
+
+	return Language::getStdString(StringID, LanguageID, amount);
+}
+
+int UIControlImpl::setLanguage(int LangID)
+{
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return NULL;
+
+        if (!IsValidLanguage(LangID))
+                return ERR_INVALID_LANGUAGE_ID;
+                                                                                                                             
+        this->LanguageID = LangID;
+        return SUCCESS;
+}
+
+int UIControlImpl::getLanguage()
+{
+	long res = checkInitialization (false);
+	if (res != SUCCESS)
+		return NULL;
+
+	return this->LanguageID;
+}
+
+void UIControlImpl::cancelWait()
+{
+	//PostMessage (*hwndDlg, UMM_EXTERNAL_CANCEL, 0, 0);
+}
+
+// checkInitialization
+// Purpose: Checks if the OperationEvent object is added to the service, and if 
+//   the application name is initialized. 
+// Returns SUCCESS if everything is initialized.
+long UIControlImpl::checkInitialization (bool checkEvent)
+{
+	if (checkEvent)
+	{
+		// Check if the OperationEvent has been added to this object
+		if (!this->opEvent )
+			return ERR_EVT_NO_EVNT_OBJECT;
+
+		if (opEvent->operation_running())
+			return ERR_OPEVNT__ALREADY_RUNNING;
+	}
+	// Check if the Application Name has been added (call to the initialize() 
+	// must be made before calling this function)
+	if (!this->getAccessManager ())
+	{
+		return opEvent->setError (ERR_AM_NOT_INITIALIZED, RUNTIME_EXECUTION);
+	}
+	return SUCCESS;
+}
+
+bool UIControlImpl::IsWindow ()
+{
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	if (*hwndDlg)
+		return true;
+	if (!(*hThread))
+		return false;
+	DWORD ExitCode;
+	GetExitCodeThread(*hThread, &ExitCode);
+	if (ExitCode == STILL_ACTIVE)
+	{
+		//Give three chances to wait until the the window will open
+		for (int i = 0; i < 3; i++)
+		{
+			Sleep(100);
+			if (*hwndDlg)
+				return true;
+		}
+	}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return false;
+}
+
+int UIControlImpl::WaitForButtonClick (DWORD timeout)
+{
+	// Prepare Handles array to be passed to WaitForEvent function to wait
+	// for two objects:
+	// - EventIDC_ENTER - ENTER button is clicked
+	// - EventIDC_CANCEL - Cancel is clicked
+	// - EventIDC_CLEAR -  Clear is clicked
+	// - EventIDC_EXTERNAL_CANCEL - Wait is canceled externally by calling cancelWait function
+	// - hThread - the thread with terminal window is terminated
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	HANDLE handleArr [6] = {*EventIDC_ENTER,
+							*EventIDC_CANCEL,
+							*EventIDC_CLEAR,
+							*EventIDC_EXTERNAL_CANCEL,
+							*EventIDC_EXIT,
+							*hThread};
+
+	ResetEvent(*EventIDC_ENTER);
+	ResetEvent(*EventIDC_CANCEL);
+	ResetEvent(*EventIDC_CLEAR);
+	ResetEvent(*EventIDC_EXTERNAL_CANCEL);
+	ResetEvent(*EventIDC_EXIT);
+	
+	// Wait until any button is clicked
+	int res = WaitForEvent (handleArr, 6, timeout);
+	switch (res)
+	{
+	case 0:
+		// The Enter button has been clicked
+		return BTN_ENTER;
+	case 1:
+		// The Cancel button has been clicked
+		return BTN_CANCEL;
+	case 2:
+		// The Clear button has been clicked
+		return BTN_CLEAR;
+	case 3:
+		// Wait has been canceled externally
+		return CANCEL_WAIT;
+	case 4:
+		// Window Exit has been clicked
+		return BTN_EXIT;
+	default:
+		return res;
+	}	
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+}
+
+int UIControlImpl::WaitForEvent (HANDLE *pHandles, DWORD nCount, DWORD timeout)
+{	
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	DWORD dwMilliseconds = _timeout(timeout);  // time-out interval
+	DWORD dwWakeMask = QS_ALLEVENTS | QS_ALLINPUT;   // input-event type
+	DWORD dwResult;
+
+	while (TRUE)
+	{
+		// No messages will be sent to this (primary) thread because the primary
+		// thread doesn't have any windows, and therefore doesn't have a message 
+		// queue. We still use this function just in case we'll add a window later
+		dwResult = MsgWaitForMultipleObjectsEx(
+			nCount,          // number of handles in array
+			pHandles,        // object-handle array
+			dwMilliseconds,  // time-out interval
+			dwWakeMask,      // input-event type
+			0 //MWMO_INPUTAVAILABLE // wait options (return from wait if unread input exists in a queue
+		);
+
+		// The result tells us the type of event we have.
+		if (dwResult == (WAIT_OBJECT_0 + nCount))
+		{
+			// New message has arrived. 
+			// dispatch it and resume waiting.
+			MSG msg ; 
+			// Read a message and remove it as we read it.
+			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) 
+			{ 
+				// If it's a quit message, we're out of here.
+				if (msg.message == WM_QUIT || msg.message == UWM_CLOSE)  
+					return ERR_APPLICATION_IS_CLOSING; 
+				// Otherwise, dispatch the message.
+				DispatchMessage(&msg); 
+			} // End of PeekMessage while loop.
+		} 
+		else if (dwResult >= WAIT_OBJECT_0 && dwResult < WAIT_OBJECT_0 + nCount)
+		{ 
+			// One of the EventObject handles became signaled 
+			//(e.g. OK button has been clicked). 
+			//Check if it is not a Thread object
+			if (pHandles[dwResult] == *hThread)
+				return ERR_TERMINAL_WINDOW_IS_UNAVAILABLE;
+			return dwResult;
+		}
+		else if (dwResult == WAIT_TIMEOUT)
+		{
+			// Timeout elapces
+			return ERR_WAIT_TIMEOUT;
+		}
+		else if (dwResult == WAIT_FAILED)
+		{
+			// Wait operation error
+			//printf("Inside UIControl: GeLastError returned: %d\n",GetLastError());
+			return ERR_UNSPECIFIED_WAITING_ERROR;
+		}
+		else
+		{
+			//Unspecified event caused the wait operation to return
+			return ERR_UNSPECIFIED_WAIT_EXIT_EVENT;
+		}
+	} // End of While loop
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+}
+
+int UIControlImpl::SetDefaultCurrencyID(byte CurrencyCode[])
+{
+	int res;
+	if (!CurrencyCode)
+		return SUCCESS;
+
+	AccessManager *pAM = getAccessManager ();
+	if (!pAM)
+	{
+		return ERR_AM_NOT_INITIALIZED;
+	}
+
+	CnfgControlImpl Cnfg;
+	res = pAM->open (&Cnfg);
+	if (res != SUCCESS)
+		return res;
+
+	CnfgOperationEventImpl opEvent;
+	Cnfg.addOperationEvent (&opEvent);
+
+	// Read the Terminal Country Code value from the registry (tag 9F1A)
+	if ((res = Cnfg.getValue (CNFG_TERMINAL, "Data", "9F1A")) != SUCCESS)
+	{
+		// Failed to retreive the Terminal Country Code; use hardcoded default
+		// Use US Dollars (840) and 2 for the value of exponent (4 most significant
+		// digits)
+		CurrencyCode[0] = 0x28;
+		CurrencyCode[1] = 0x40;
+		return SUCCESS;
+	}
+
+	byte *data;
+	int data_size;
+	data_size = opEvent.getLength ();
+	if (data_size != 2)
+	{
+		// Invalid data read from the registry -- must a size of 2 bytes!
+		CurrencyCode[0] = 0x28;
+		CurrencyCode[1] = 0x40;
+		return SUCCESS;
+	}
+	opEvent.getByteString (&data);
+	memcpy (CurrencyCode, data, 2);
+	return SUCCESS;
+}
+
+int UIControlImpl::readOptionItem (HWND &hwndList, int item_indx, 
+								   char **item_text, int *item_data)
+{
+	int res;
+/*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+	//Initialize selection index
+	int IndxSelected = item_indx;
+
+	// Get the length of the buffer required to store the value of the 
+	// item specified
+	int textLen = (int) SendMessage(hwndList, LB_GETTEXTLEN, 
+		(WPARAM)IndxSelected, 0);
+	if (textLen == LB_ERR)
+	{
+		res = OPTIONLIST_INVALID_INDX;	
+	}
+	else
+	{
+		// The length of the buffer is successfully retreived
+		char *item_value = new char [textLen + 1];
+		if (!item_value)
+		{
+			res = ERR_MEMORY_ALLOC;
+		}
+		else
+		{
+			// Buffer is successfully allocated
+			res = (int)SendMessage (hwndList, LB_GETTEXT, (WPARAM)IndxSelected,
+					(LPARAM)item_value);
+			if (res == LB_ERR)
+			{
+				delete [] item_value;
+				res = ERR_FAILED_TO_RETREIVE_DATA;
+			}
+			else
+			{
+				// Text Value is successfully retreived
+				int data = (int)SendMessage(hwndList, LB_GETITEMDATA,
+					(WPARAM)IndxSelected, 0);
+				if (data == LB_ERR)
+				{
+					delete [] item_value;
+					res = ERR_FAILED_TO_RETREIVE_DATA;
+				}
+				else
+				{
+					// Data is successfully retrieved for the specified index
+	
+					// save retreived data inot the Operation Event object
+					*item_text = item_value;
+					*item_data = data;
+					res = SUCCESS;
+				}
+			}
+		}
+	}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/
+	return res;
+}
+
+
+/*
+int UIControlImpl::setLanguage(int LangID)
+{
+        if (!IsValidLanguage(LangID))
+                return ERR_INVALID_LANGUAGE_ID;
+                                                                                                                             
+        this->LanguageID = LangID;
+        return SUCCESS;
+}
+
+int UIControlImpl::getLanguage()
+{
+        return this->LanguageID;
+}
+
+*/
+
+bool UIControlImpl::IsValidLanguage(int LangID)
+{
+        if (LangID >= EMV_LANG_LATIN1 && LangID <= EMV_LANG_LATIN6)
+                return true;
+        else
+                return false;
+}
+
